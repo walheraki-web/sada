@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Translucent: the receiver's live picture shows behind the side panel. -->
+    <style name="Theme.Sada" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:colorAccent">@color/sada_accent</item>
+    </style>
+    <color name="sada_bg">#FF10141F</color>
+    <color name="sada_accent">#FF3D8BFD</color>
+</resources>

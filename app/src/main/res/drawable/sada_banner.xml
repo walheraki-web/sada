@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 320x180 TV banner: dark field with concentric "echo" arcs -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#10141F" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#3D8BFD" android:pathData="M120,90m-14,0a14,14 0,1 1,28 0a14,14 0,1 1,-28 0" />
+    <path android:strokeColor="#3D8BFD" android:strokeWidth="8" android:fillColor="#00000000"
+        android:pathData="M150,60a42,42 0,0 1,0 60" />
+    <path android:strokeColor="#7FB2FF" android:strokeWidth="8" android:fillColor="#00000000"
+        android:pathData="M170,40a70,70 0,0 1,0 100" />
+    <path android:strokeColor="#BFD8FF" android:strokeWidth="8" android:fillColor="#00000000"
+        android:pathData="M190,20a98,98 0,0 1,0 140" />
+</vector>
