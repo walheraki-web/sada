@@ -11,8 +11,8 @@ android {
         applicationId = "com.sada.tv"
         minSdk = 29 // AudioPlaybackCapture needs Android 10+
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.2"
     }
 
     buildTypes {

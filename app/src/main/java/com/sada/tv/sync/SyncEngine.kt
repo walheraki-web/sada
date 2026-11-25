@@ -40,6 +40,8 @@ class SyncEngine(
         val videoMethod: String
         val menuVideoDelayMs: Int
         fun setMenuVideoDelay(ms: Int)
+        /** -1 unknown, 1 the menu delay also delays the captured channel sound, 0 it does not. */
+        var menuMovesCapture: Int
         fun setStationVolume(v: Float)
         fun stationVolume(): Float
         fun muteTv(mute: Boolean): Boolean
@@ -171,15 +173,26 @@ class SyncEngine(
         }
         misses = 0
         SLog.i("check: residual ${m.lagMs.toInt()} ms")
-        if (abs(m.lagMs) >= 80) correct(gen, m.lagMs, refine = false) else phase = Phase.LOCKED
+        if (abs(pictureLag(m.lagMs)) >= 80) correct(gen, m.lagMs, refine = false) else phase = Phase.LOCKED
     }
 
-    /** Applies the plan for [lagMs]; with [refine], re-measures and trims up to twice. */
-    private fun correct(gen: Int, lagMs: Double, refine: Boolean) {
-        var lag = lagMs
+    /**
+     * Station-vs-PICTURE lag from a station-vs-channel-SOUND measurement. With the
+     * receiver menu, the picture may be delayed while the channel's sound is not;
+     * then the picture trails the captured sound by the menu delay.
+     */
+    private fun pictureLag(measured: Double): Double =
+        if (host.videoMethod == "menu" && host.menuMovesCapture == 0) measured - host.menuVideoDelayMs else measured
+
+    /** Applies the plan for [measuredMs]; with [refine], re-measures and trims up to twice. */
+    private fun correct(gen: Int, measuredMs: Double, refine: Boolean) {
+        var measured = measuredMs
         for (round in 0..2) {
             check(gen)
             phase = Phase.APPLYING
+            val lag = pictureLag(measured)
+            val a0 = host.audioDelayMs
+            val v0 = host.menuVideoDelayMs
             val changed = (if (host.videoMethod == "menu") applyMenu(lag) else applyPause(lag)) ?: return
             if (!changed) { finish(lag); return }
             if (!refine || round == 2) { finish(null); return }
@@ -187,11 +200,33 @@ class SyncEngine(
             sleep(gen, 2500)
             val r = withMeasuringSetup(gen, allowUnmute = true) {
                 measure(gen, -2500, 2500, deadlineMs = 45_000)
+            } ?: run {
+                // The residual may be outside the narrow window (e.g. the menu
+                // delay did not move the channel sound): look wider once.
+                if (host.videoMethod == "menu" && host.menuMovesCapture == -1) {
+                    withMeasuringSetup(gen, allowUnmute = true) {
+                        measure(gen, -SyncPolicy.MAX_NEGATIVE_LAG_MS, SyncPolicy.MAX_POSITIVE_LAG_MS, deadlineMs = 90_000)
+                    }
+                } else null
             }
             if (r == null) { finish(null); return }
             SLog.i("refine: residual ${r.lagMs.toInt()} ms")
-            lag = r.lagMs
+            learnMenuBehaviour(measured, r.lagMs, host.menuVideoDelayMs - v0, host.audioDelayMs - a0)
+            measured = r.lagMs
         }
+    }
+
+    /**
+     * After a picture-delay change of [dV] (and station change [dA]), the new
+     * measurement tells whether the receiver's menu moved the captured channel
+     * sound too: if yes it should read about before - dV + dA, if not before + dA.
+     */
+    private fun learnMenuBehaviour(before: Double, after: Double, dV: Int, dA: Int) {
+        if (host.videoMethod != "menu" || host.menuMovesCapture != -1 || abs(dV) < 1000) return
+        val ifMoves = before - dV + dA
+        val ifNot = before + dA
+        host.menuMovesCapture = if (abs(after - ifMoves) <= abs(after - ifNot)) 1 else 0
+        SLog.i("menu delay moves captured channel sound: ${host.menuMovesCapture == 1} (before $before after $after dV $dV dA $dA)")
     }
 
     /** @return true if something changed, false if nothing was needed, null on error. */
@@ -289,7 +324,7 @@ class SyncEngine(
         phase = Phase.MATCHING
         val confirmed = ArrayList<SyncPolicy.Measured>()
         while (now() - start < deadlineMs) {
-            sleep(gen, 500)
+            sleep(gen, 300)
             val tvNew = tv.newest
             val stNew = station.newest
             if (tvNew == Long.MIN_VALUE || stNew == Long.MIN_VALUE) continue
@@ -308,7 +343,7 @@ class SyncEngine(
             host.status("جارٍ مطابقة الصوتين… (مدى البحث %d ث)".format(hi / 1000))
             if (!SyncPolicy.accept(r)) continue
             val m = SyncPolicy.Measured(r.lagMs + host.calibMs, to * f, r)
-            lastLagMs = m.lagMs
+            lastLagMs = pictureLag(m.lagMs)
             if (confirmed.any { SyncPolicy.confirms(it, m) }) return m
             confirmed += m
             host.status("وجد فرقًا %+.2f ث، يتأكد…".format(m.lagMs / 1000))

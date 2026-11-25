@@ -102,6 +102,12 @@ class PanelKeyService : AccessibilityService() {
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
         val code = event.keyCode
+        if (code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN || code == KeyEvent.KEYCODE_VOLUME_MUTE) {
+            val sada = SadaService.instance
+            if (sada == null || !sada.playing || sada.prefs.hearMode != "mine") return false
+            if (event.action == KeyEvent.ACTION_DOWN) main.post { sada.onVolumeKey(code) }
+            return true // the remote's volume now drives the station
+        }
         if (visible) {
             if (!isPanelKey(code)) return false
             if (event.action == KeyEvent.ACTION_DOWN) main.post { overlay?.onKey(code) }

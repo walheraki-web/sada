@@ -55,8 +55,13 @@ class PanelOverlay(context: Context, private val onClose: () -> Unit) : FrameLay
         Row("الصوت", { if (it.prefs.hearMode == "mine") "صوتي" else "صوت القناة" },
             change = { s, _ -> s.setHearMode(if (s.prefs.hearMode == "mine") "channel" else "mine") },
             ok = { s -> s.setHearMode(if (s.prefs.hearMode == "mine") "channel" else "mine") }),
+        Row("كتم صوت القناة", { if (it.receiver.tvMuted) "مكتوم" else "مسموع" },
+            change = { s, _ -> s.toggleTvMute() }, ok = { it.toggleTvMute() }),
         Row("طريقة تأخير الصورة", { if (it.prefs.videoMethod == "menu") "قائمة الريسيفر" else "الإيقاف المؤقت" },
-            change = { s, _ -> s.prefs.videoMethod = if (s.prefs.videoMethod == "menu") "pause" else "menu" }),
+            change = { s, _ ->
+                s.prefs.videoMethod = if (s.prefs.videoMethod == "menu") "pause" else "menu"
+                s.prefs.menuMovesCapture = -1
+            }),
         Row("تجربة تأخير الصورة", { "اضغط" }, ok = { it.testPictureDelay() }),
         Row("تصفير تأخير الصورة", { "اضغط" }, ok = { it.resetPictureDelay() }),
         Row("فحص الريسيفر", { "اضغط" }, ok = { it.scanReceiver() }),

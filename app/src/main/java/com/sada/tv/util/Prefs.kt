@@ -131,6 +131,14 @@ class Prefs(context: Context) {
         get() = sp.getString("videoMethod", "pause")!!
         set(v) = sp.edit().putString("videoMethod", v).apply()
 
+    /**
+     * Whether the receiver's picture-delay menu also delays the channel's SOUND
+     * as captured (-1 unknown, 1 yes, 0 no). Learned from the first refine pass.
+     */
+    var menuMovesCapture: Int
+        get() = sp.getInt("menuMovesCapture", -1)
+        set(v) = sp.edit().putInt("menuMovesCapture", v).apply()
+
     /** Picture delay last set through the receiver menu (ms). */
     var menuVideoDelayMs: Int
         get() = sp.getInt("menuVideoDelayMs", 0)

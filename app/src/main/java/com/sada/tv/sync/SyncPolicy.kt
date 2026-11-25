@@ -11,7 +11,7 @@ object SyncPolicy {
     /** Two confirmations must agree within this. */
     const val AGREE_MS = 60.0
     /** Confirmations must come from windows at least this far apart (independent audio). */
-    const val MIN_SEPARATION_MS = 6_000L
+    const val MIN_SEPARATION_MS = 4_000L
     /** Residual errors below this are left alone. */
     const val TOLERANCE_MS = 40.0
     /** After a pause, the picture is held this much past the target; the station absorbs it. */

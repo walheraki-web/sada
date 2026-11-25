@@ -428,6 +428,46 @@ class SadaService : Service() {
         }
     }
 
+    /** Mutes / unmutes the channel's own sound (independent of what the station does). */
+    fun toggleTvMute() {
+        val want = !receiver.tvMuted
+        val ok = receiver.muteTv(want)
+        action(
+            when {
+                !ok && want && !prefs.stationOnAlarmStream -> "الكتم يحتاج «تشغيل المحطة على مسار المنبّه» من تطبيق صدى"
+                !ok -> "تعذّر تغيير صوت القناة على هذا الجهاز"
+                want -> "صوت القناة مكتوم"
+                else -> "صوت القناة مسموع"
+            },
+        )
+    }
+
+    /**
+     * Remote volume keys drive the STATION's volume while Sada plays (the
+     * station is on the alarm stream, so the system volume bar shows it).
+     */
+    fun onVolumeKey(code: Int) {
+        val am = getSystemService(android.media.AudioManager::class.java)
+        if (code == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) {
+            val url = currentStation?.url ?: return
+            val muted = playerVolume() == 0f
+            setPlayerVolume(if (muted) prefs.stationVolume(url).coerceAtLeast(0.1f) else 0f)
+            action(if (muted) "صوت المحطة مسموع" else "صوت المحطة مكتوم")
+            return
+        }
+        val dir = if (code == android.view.KeyEvent.KEYCODE_VOLUME_UP) android.media.AudioManager.ADJUST_RAISE
+        else android.media.AudioManager.ADJUST_LOWER
+        if (prefs.stationOnAlarmStream) {
+            am.adjustStreamVolume(android.media.AudioManager.STREAM_ALARM, dir, android.media.AudioManager.FLAG_SHOW_UI)
+            if (playerVolume() == 0f && prefs.hearMode == "mine") setPlayerVolume(currentStation?.let { prefs.stationVolume(it.url) } ?: 1f)
+        } else {
+            val url = currentStation?.url ?: return
+            val v = (prefs.stationVolume(url) + if (dir == android.media.AudioManager.ADJUST_RAISE) 0.1f else -0.1f).coerceIn(0f, 1f)
+            setStationVolume(v)
+            action("صوت المحطة ${(v * 100).toInt()}%")
+        }
+    }
+
     /** Picture-delay test: pause 5 s, or set 5 s through the receiver menu. */
     fun testPictureDelay() {
         bg.execute {
@@ -555,6 +595,9 @@ class SadaService : Service() {
         override val videoMethod get() = prefs.videoMethod
         override val menuVideoDelayMs get() = prefs.menuVideoDelayMs
         override fun setMenuVideoDelay(ms: Int) { receiver.setMenuVideoDelay(ms) }
+        override var menuMovesCapture: Int
+            get() = prefs.menuMovesCapture
+            set(v) { prefs.menuMovesCapture = v }
         override fun setStationVolume(v: Float) = setPlayerVolume(v)
         override fun stationVolume(): Float = playerVolume()
         override fun muteTv(mute: Boolean) = receiver.muteTv(mute)
