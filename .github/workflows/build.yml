@@ -21,6 +21,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # Keep the SAME signing key for every build (stored in the repo's private
+      # Actions cache, never in the code), so each new APK installs as an
+      # update over the previous one instead of being refused.
+      - name: Restore signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: sada-signing-key-v1
+
       - name: Accept Android SDK licenses
         run: yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1 || true
 
