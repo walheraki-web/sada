@@ -45,11 +45,6 @@ class Prefs(context: Context) {
 
     // --- sync behaviour ---
 
-    /** Keep checking the sync while playing and correct drift automatically. */
-    var monitor: Boolean
-        get() = sp.getBoolean("monitor", true)
-        set(v) = sp.edit().putBoolean("monitor", v).apply()
-
     /** Re-sync automatically after the station reconnects. */
     var resyncAfterDrop: Boolean
         get() = sp.getBoolean("resyncAfterDrop", true)
@@ -96,10 +91,50 @@ class Prefs(context: Context) {
 
     // --- capture source ---
 
-    /** "playback" (default, needs one consent) or "mic". */
+    /**
+     * How the channel's sound is captured: "helper" (receiver output via adb,
+     * works on DVB boxes), "playback" (system playback capture) or "mic".
+     */
     var captureMode: String
-        get() = sp.getString("captureMode", "playback")!!
+        get() = sp.getString("captureMode", "helper")!!
         set(v) = sp.edit().putString("captureMode", v).apply()
+
+    /** Helper capture method found by the receiver scan (CaptureProtocol.Mode id). */
+    var helperMode: String?
+        get() = sp.getString("helperMode", null)
+        set(v) = sp.edit().putString("helperMode", v).apply()
+
+    /** adbd port that worked (0 = not found yet). */
+    var adbPort: Int
+        get() = sp.getInt("adbPort", 0)
+        set(v) = sp.edit().putInt("adbPort", v).apply()
+
+    // --- sync mode ---
+
+    /** Keep the station locked to the picture continuously. */
+    var autoSync: Boolean
+        get() = sp.getBoolean("autoSync", true)
+        set(v) = sp.edit().putBoolean("autoSync", v).apply()
+
+    /** What the user hears: "mine" (the station; channel muted) or "channel". */
+    var hearMode: String
+        get() = sp.getString("hearMode", "mine")!!
+        set(v) = sp.edit().putString("hearMode", v).apply()
+
+    /** How keys reach the receiver: "media" (no privilege) or "adb". */
+    var keyMethod: String
+        get() = sp.getString("keyMethod", "media")!!
+        set(v) = sp.edit().putString("keyMethod", v).apply()
+
+    /** How the picture is delayed: "pause" (timeshift by pausing) or "menu" (receiver setting via adb). */
+    var videoMethod: String
+        get() = sp.getString("videoMethod", "pause")!!
+        set(v) = sp.edit().putString("videoMethod", v).apply()
+
+    /** Picture delay last set through the receiver menu (ms). */
+    var menuVideoDelayMs: Int
+        get() = sp.getInt("menuVideoDelayMs", 0)
+        set(v) = sp.edit().putInt("menuVideoDelayMs", v).apply()
 
     // --- remote key ---
 

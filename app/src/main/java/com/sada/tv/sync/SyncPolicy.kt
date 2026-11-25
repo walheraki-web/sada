@@ -57,6 +57,30 @@ object SyncPolicy {
         return Plan(pause, OVERSHOOT_MS.toInt())
     }
 
+    const val MENU_STEP_MS = 500
+    const val MENU_MAX_MS = 60_000
+
+    /**
+     * Plan for receivers whose picture delay is an absolute menu setting
+     * (0-60 s in 0.5 s steps). Picks the SMALLEST picture delay that lets the
+     * station delay stay >= 0, so the picture is never held back more than needed
+     * (it can also come back down).
+     *
+     * @param videoDelayMs picture delay in force while measuring.
+     */
+    fun planMenu(lagMs: Double, currentDelayMs: Int, videoDelayMs: Int): MenuPlan? {
+        if (abs(lagMs) < TOLERANCE_MS) return null
+        val lag = Math.round(lagMs)
+        val need = videoDelayMs + lag - currentDelayMs // minimum picture delay
+        val v = if (need <= 0) 0L else ((need + MENU_STEP_MS - 1) / MENU_STEP_MS) * MENU_STEP_MS
+        if (v > MENU_MAX_MS) return MenuPlan(0, 0, "الفرق %.1f ث أكبر من حد قائمة الريسيفر".format(lagMs / 1000))
+        val a = currentDelayMs - lag + v - videoDelayMs
+        if (a > MAX_AUDIO_DELAY_MS) return MenuPlan(0, 0, "الفرق %.1f ث أكبر من الحد المسموح".format(lagMs / 1000))
+        return MenuPlan(v.toInt(), a.toInt())
+    }
+
+    data class MenuPlan(val videoDelayMs: Int, val newDelayMs: Int, val error: String? = null)
+
     data class Plan(val pauseMs: Long, val newDelayMs: Int, val error: String? = null) {
         companion object {
             fun tooFar(lagMs: Double) =

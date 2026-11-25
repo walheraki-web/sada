@@ -48,4 +48,25 @@ class SyncPolicyTest {
         assertTrue(SyncPolicy.confirms(a, SyncPolicy.Measured(1030.0, 107_000, r)))
         assertFalse(SyncPolicy.confirms(a, SyncPolicy.Measured(1200.0, 107_000, r))) // disagree
     }
+
+    @Test fun menuPlanUsesSmallestPictureDelay() {
+        // station 7.2 s late, 0.3 s own delay, no picture delay: picture 7.0 s? not
+        // enough (needs 6.9 -> 7.0), station keeps 0.1 s.
+        val p = SyncPolicy.planMenu(7200.0, 300, 0)!!
+        assertEquals(7000, p.videoDelayMs)
+        assertEquals(100, p.newDelayMs)
+        // net zero: lag - dV + dA
+        assertEquals(0.0, 7200.0 - (p.videoDelayMs - 0) + (p.newDelayMs - 300), 0.5)
+    }
+
+    @Test fun menuPlanBringsPictureDelayDown() {
+        // picture held 10 s but the station is now 4 s EARLY: lower the picture.
+        val p = SyncPolicy.planMenu(-4000.0, 0, 10_000)!!
+        assertEquals(6000, p.videoDelayMs)
+        assertEquals(0, p.newDelayMs)
+    }
+
+    @Test fun menuPlanRefusesBeyondMenuRange() {
+        assertNotNull(SyncPolicy.planMenu(70_000.0, 0, 0)!!.error)
+    }
 }

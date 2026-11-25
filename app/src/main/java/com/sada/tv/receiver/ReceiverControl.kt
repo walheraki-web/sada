@@ -5,6 +5,7 @@ import android.media.AudioManager
 import android.os.SystemClock
 import android.view.KeyEvent
 import com.sada.tv.util.SLog
+import com.sada.tv.adb.ShellAccess
 import com.sada.tv.util.Prefs
 import java.io.File
 import java.lang.reflect.Method
@@ -22,7 +23,7 @@ import java.lang.reflect.Method
  *    verify that the pause really happened.
  *  - [muteTv] silences the channel's own sound while the station keeps playing.
  */
-class ReceiverControl(context: Context, private val prefs: Prefs) {
+class ReceiverControl(context: Context, private val prefs: Prefs, private val shell: ShellAccess) {
 
     private val app = context.applicationContext
     private val am = app.getSystemService(AudioManager::class.java)
@@ -61,9 +62,38 @@ class ReceiverControl(context: Context, private val prefs: Prefs) {
     }
 
     private fun sendKey(code: Int) {
+        if (prefs.keyMethod == "adb") {
+            // `input keyevent` starts a small VM on each call (~0.3-0.6 s); the
+            // sync engine's refine pass measures and trims that imprecision.
+            shell.shell("input keyevent $code", 5000)
+            return
+        }
         val t = SystemClock.uptimeMillis()
         am.dispatchMediaKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_DOWN, code, 0))
         am.dispatchMediaKeyEvent(KeyEvent(t, t, KeyEvent.ACTION_UP, code, 0))
+    }
+
+    /**
+     * Sets the receiver's own picture-delay setting (0-60 s, 0.5 s steps) by
+     * driving its menu over adb: AUDIO_TRACK twice, RED, all the way left to 0,
+     * right once per 0.5 s, OK, BACK. Blocks ~5-10 s. Returns the delay set.
+     */
+    fun setMenuVideoDelay(ms: Int): Int {
+        val steps = ((ms + 499) / 500).coerceIn(0, 120)
+        val c = shell.connection()
+        fun keys(vararg k: Int) { c.shell("input keyevent " + k.joinToString(" "), 30_000) }
+        keys(KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK); Thread.sleep(450)
+        keys(KeyEvent.KEYCODE_MEDIA_AUDIO_TRACK); Thread.sleep(1100)
+        keys(KeyEvent.KEYCODE_PROG_RED); Thread.sleep(900)
+        keys(*IntArray(125) { KeyEvent.KEYCODE_DPAD_LEFT }); Thread.sleep(500)
+        if (steps > 0) keys(*IntArray(steps) { KeyEvent.KEYCODE_DPAD_RIGHT })
+        Thread.sleep(900L + steps * 15L)
+        keys(KeyEvent.KEYCODE_DPAD_CENTER); Thread.sleep(900)
+        keys(KeyEvent.KEYCODE_BACK)
+        val set = steps * 500
+        prefs.menuVideoDelayMs = set
+        SLog.i("menu video delay set to $set ms")
+        return set
     }
 
     /**

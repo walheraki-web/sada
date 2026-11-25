@@ -41,12 +41,6 @@ class MainActivity : android.app.Activity(), SadaService.Listener {
     private var service: SadaService? = null
     private lateinit var resultView: TextView
     private lateinit var statusView: TextView
-    private lateinit var captureView: TextView
-    private lateinit var delayView: TextView
-    private lateinit var calibView: TextView
-    private lateinit var timeshiftView: TextView
-    private lateinit var keysButton: Button
-    private lateinit var muteButton: Button
     private lateinit var stationsBox: LinearLayout
     private var stationFilter = ""
 
@@ -94,84 +88,24 @@ class MainActivity : android.app.Activity(), SadaService.Listener {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 16, 24, 16)
             background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(Color.parseColor("#E610141F")); cornerRadius = 18f
+                setColor(Color.parseColor("#F00F1522")); cornerRadius = 18f
             }
         }
         val version = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull() ?: "?"
         panel.addView(title("صدى Sada — $version"))
-        resultView = label(prefs.sp.getString("lastResult", "لم تُجرَ مزامنة بعد")!!).apply { textSize = 15f }
+        resultView = label(prefs.sp.getString("lastResult", "")!!).apply { textSize = 15f }
         statusView = label("—")
         panel.addView(resultView)
         panel.addView(statusView)
 
+        // --- the panel over the channel ---
+        panel.addView(section("لوحة صدى فوق القناة"))
         panel.addView(row(
-            button("مزامنة الآن") { service?.syncNow() },
-            button("إلغاء") { service?.cancelSync() },
-            button("إيقاف") { service?.stopPlayback() },
+            button("افتح اللوحة فوق القناة") { openPanel() },
+            button("تفعيل خدمة اللوحة") { openAccessibility() },
         ))
-        muteButton = button("كتم صوت القناة") { service?.toggleMuteTv(); refreshValues() }
-        panel.addView(muteButton)
-
-        // --- channel sound ---
-        panel.addView(section("صوت القناة (للمزامنة)"))
-        captureView = label("—")
-        panel.addView(captureView)
+        panel.addView(label("فعّل «Sada» من إمكانية الوصول مرة واحدة. بعدها افتح اللوحة وأنت على القناة بالضغط على الزر الأحمر مرتين، أو بزر تعلّمه هنا."))
         panel.addView(row(
-            button("التقاط صوت القناة") { service?.requestChannelCapture(); refreshLater() },
-            button("استخدم الميكروفون") { service?.useMicrophone(); refreshLater() },
-        ))
-        panel.addView(label("عند أول مرة تظهر نافذة «بدء التسجيل/البث»: اختر «ابدأ الآن». هذا يسمح لصدى بسماع صوت القناة فقط، دون صوت المحطة."))
-
-        // --- delays ---
-        panel.addView(section("التأخير"))
-        delayView = label("—")
-        panel.addView(delayView)
-        panel.addView(row(
-            button("محطة −1ث") { service?.nudgeAudioDelay(-1000); refreshValues() },
-            button("−0.1") { service?.nudgeAudioDelay(-100); refreshValues() },
-            button("+0.1") { service?.nudgeAudioDelay(+100); refreshValues() },
-            button("محطة +1ث") { service?.nudgeAudioDelay(+1000); refreshValues() },
-        ))
-        timeshiftView = label("—")
-        panel.addView(timeshiftView)
-        panel.addView(row(
-            button("أخّر الصورة 0.5ث") { service?.delayPicture(500); refreshLater() },
-            button("أخّر الصورة 2ث") { service?.delayPicture(2000); refreshLater() },
-        ))
-        panel.addView(row(
-            button("صوت المحطة −") { adjustVolume(-0.1f) },
-            button("صوت المحطة +") { adjustVolume(+0.1f) },
-        ))
-
-        // --- timeshift settings ---
-        panel.addView(section("تأخير الصورة (الإيقاف المؤقت للريسيفر)"))
-        keysButton = button("زر الإيقاف: …") { service?.let { keysButton.text = "زر الإيقاف: " + it.cyclePauseKeys() } }
-        panel.addView(keysButton)
-        panel.addView(button("اختبار الإيقاف (5 ث)") { service?.testPause() })
-        panel.addView(label("صدى يؤخّر الصورة بإيقاف القناة مؤقتًا ثم استئنافها بعد المدة المطلوبة بالضبط. إن لم تتجمّد الصورة في الاختبار، بدّل زر الإيقاف وجرّب مجددًا."))
-        calibView = label("—")
-        panel.addView(calibView)
-        panel.addView(row(
-            button("معايرة −20") { service?.nudgeCalib(-20); refreshValues() },
-            button("معايرة +20") { service?.nudgeCalib(+20); refreshValues() },
-        ))
-
-        // --- options ---
-        panel.addView(section("خيارات"))
-        panel.addView(check("مراقبة المزامنة وتصحيحها تلقائيًا", prefs.monitor) { prefs.monitor = it })
-        panel.addView(check("إعادة المزامنة بعد انقطاع البث", prefs.resyncAfterDrop) { prefs.resyncAfterDrop = it })
-        panel.addView(check("كتم القناة بعد المزامنة", prefs.muteTvAfterSync) { prefs.muteTvAfterSync = it })
-        panel.addView(check("تشغيل المحطة على مسار المنبّه (يلزم للكتم؛ يُطبَّق بعد إعادة فتح صدى)", prefs.stationOnAlarmStream) {
-            prefs.stationOnAlarmStream = it
-        })
-
-        // --- remote key ---
-        panel.addView(section("زر فتح اللوحة"))
-        panel.addView(row(
-            button("تفعيل خدمة الزر") {
-                runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                    .onFailure { toast("افتح: الإعدادات ▸ إمكانية الوصول ▸ Sada") }
-            },
             button("تعليم زر") {
                 PanelKeyService.Config.learnMode = true
                 toast("اضغط الآن الزر الذي تريده لفتح اللوحة")
@@ -181,13 +115,31 @@ class MainActivity : android.app.Activity(), SadaService.Listener {
                 toast("الاختصار: الزر الأحمر مرتين")
             },
         ))
+
+        // --- hearing the channel ---
+        panel.addView(section("سماع صوت القناة (ضروري للمزامنة)"))
+        panel.addView(button("فحص الريسيفر") { service?.scanReceiver() })
+        panel.addView(label("يتصل صدى بـ ADB داخل الريسيفر نفسه ويجرّب طرق الالتقاط حتى يجد التي تحمل صوت القناة. " +
+            "قبلها: فعّل «تصحيح ADB عبر الشبكة» من خيارات المطوّر، أو نفّذ مرة واحدة من الكمبيوتر: adb tcpip 5555. " +
+            "عند ظهور نافذة «السماح بالتصحيح» اختر «السماح دائمًا». اترك القناة تعمل بصوت أثناء الفحص."))
+        panel.addView(row(
+            button("بديل: التقاط النظام") { service?.usePlaybackCapture() },
+            button("بديل: الميكروفون") { service?.useMicrophone() },
+        ))
+
+        // --- options ---
+        panel.addView(section("خيارات"))
+        panel.addView(check("إعادة المزامنة بعد انقطاع البث", prefs.resyncAfterDrop) { prefs.resyncAfterDrop = it })
+        panel.addView(check("تشغيل المحطة على مسار المنبّه (يلزم لكتم القناة؛ بعد إعادة فتح صدى)", prefs.stationOnAlarmStream) {
+            prefs.stationOnAlarmStream = it
+        })
         panel.addView(button("تصدير السجل") {
             runCatching { toast("حُفظ في التنزيلات: ${SLog.export(this)}") }
                 .onFailure { toast("تعذّر الحفظ: ${it.message}") }
         })
 
         // --- stations (last: may be long) ---
-        panel.addView(section("المحطة — اختر واحدة"))
+        panel.addView(section("المحطات — اضغط لتشغيلها"))
         panel.addView(addStationRow())
         panel.addView(importRow())
         panel.addView(searchRow())
@@ -197,31 +149,32 @@ class MainActivity : android.app.Activity(), SadaService.Listener {
 
         val scroll = ScrollView(this).apply { addView(panel) }
         val lp = FrameLayout.LayoutParams(
-            (resources.displayMetrics.widthPixels * 0.58f).toInt(),
+            (resources.displayMetrics.widthPixels * 0.62f).toInt(),
             FrameLayout.LayoutParams.MATCH_PARENT,
         ).apply { gravity = Gravity.END }
         frame.addView(scroll, lp)
         return frame
     }
 
-    private fun adjustVolume(delta: Float) {
-        val s = service ?: return
-        val url = s.currentStation?.url ?: return
-        val v = (prefs.stationVolume(url) + delta).coerceIn(0f, 1f)
-        s.setStationVolume(v)
-        toast("صوت المحطة ${(v * 100).toInt()}%")
+    /** Leaves this screen and shows the panel over the live channel. */
+    private fun openPanel() {
+        val p = PanelKeyService.instance
+        if (p == null) {
+            toast("فعّل خدمة لوحة صدى من إمكانية الوصول أولًا")
+            openAccessibility()
+            return
+        }
+        moveTaskToBack(true)
+        p.show()
     }
 
-    private fun refreshLater() { statusView.postDelayed({ refreshValues() }, 1500) }
+    private fun openAccessibility() {
+        runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+            .onFailure { toast("افتح: الإعدادات ▸ إمكانية الوصول ▸ Sada") }
+    }
 
     private fun refreshValues() = runOnUiThread {
         val s = service ?: return@runOnUiThread
-        captureView.text = if (s.captureActive) "يعمل: ${s.captureLabel}" else "غير مفعّل — اضغط «التقاط صوت القناة»"
-        delayView.text = "تأخير المحطة: %.2f ث".format(s.audioDelayMs / 1000.0)
-        timeshiftView.text = "الصورة مؤخّرة منذ آخر ضبط للقناة بحوالي %.1f ث".format(prefs.timeshiftMs / 1000.0)
-        calibView.text = "معايرة: %+d م.ث (موجب = المحطة تُسمع متأخرة)".format(prefs.calibMs)
-        keysButton.text = "زر الإيقاف: " + s.pauseKeysLabel()
-        muteButton.text = if (s.receiver.tvMuted) "إلغاء كتم القناة" else "كتم صوت القناة"
         statusView.text = s.lastStatus
         resultView.text = s.lastResult
     }
@@ -253,7 +206,7 @@ class MainActivity : android.app.Activity(), SadaService.Listener {
         val shown = if (q.isEmpty()) all else all.filter { it.name.contains(q, ignoreCase = true) }
         stationsBox.addView(label("المحطات: ${shown.size} / ${all.size}"))
         for (st in shown.take(200)) {
-            val play = button(st.name) { service?.play(st); refreshLater() }
+            val play = button(st.name) { service?.play(st); toast("يشغّل ${st.name} — افتح اللوحة فوق القناة") }
             (play.layoutParams as LinearLayout.LayoutParams).weight = 1f
             stationsBox.addView(row(play, button("حذف") {
                 prefs.stations = prefs.stations.filterNot { it == st }
