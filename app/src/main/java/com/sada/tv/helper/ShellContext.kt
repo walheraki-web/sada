@@ -14,7 +14,7 @@ import android.os.Looper
  * must present itself as "com.android.shell" / uid 2000.
  */
 @SuppressLint("PrivateApi", "DiscouragedPrivateApi")
-@androidx.annotation.RequiresApi(31)
+@android.annotation.TargetApi(31)
 internal class ShellContext(base: Context) : ContextWrapper(base) {
 
     override fun getPackageName(): String = HelperContext.SHELL_PACKAGE
